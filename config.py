@@ -27,16 +27,16 @@ IMAGES_DIR = "images"
 
 # === RSS источники ===
 RSS_FEEDS = [
+    "https://www.anti-malware.ru/news/feed",
+    "https://www.securitylab.ru/_Services/Export/RSS/news/",
+    "https://habr.com/ru/rss/hub/infosecurity/",
     "https://feeds.feedburner.com/TheHackersNews",
     "https://www.bleepingcomputer.com/feed/",
-    "https://www.darkreading.com/rss.xml",
-    "https://www.securityweek.com/feed/",
-    "https://krebsonsecurity.com/feed/",
-    "https://securelist.com/feed/",
 ]
 
 # === Фильтр тем ===
 KEYWORDS_INCLUDE = [
+    # English
     "data breach", "leak", "leaked", "exposed",
     "ransomware", "ransom", "encrypted",
     "phishing", "spear phishing", "scam",
@@ -47,6 +47,17 @@ KEYWORDS_INCLUDE = [
     "customer data", "pii", "personal data",
     "ddos", "credential", "stealer",
     "sql injection", "xss", "supply chain",
+    # Русский
+    "утечк", "слил", "слита", "взлом", "взломан",
+    "шифровальщик", "вымогатель",
+    "фишинг", "поддельн", "мошенн",
+    "уязвимост", "эксплоит", "атака", "атаков",
+    "интернет-магазин", "магазин",
+    "персональн", "данные клиент", "база клиент",
+    "ддос", "взломал", "взломали",
+    "скомпрометир", "украден", "слиты",
+    "152-фз", "роскомнадзор", "штраф",
+    "битрикс", "wordpress", "опенкарт",
 ]
 
 KEYWORDS_EXCLUDE = [
