@@ -1,49 +1,35 @@
 """
-image_generator.py — генерация постовых картинок в фирстиле Велес IT.
-Палитра снята со скриншота сайта veles-it.ru:
-  - фон #0A1414
-  - карточка #0F1A1A
-  - бирюза #5EE6D0 (главный акцент)
-  - оранжевый #FF8C42 (alert / breakdown)
-  - текст #E6F4F1 / #7A9B96
+image_generator.py — каждая картинка уникальна.
+- имя файла = хеш заголовка
+- на картинке: дата, источник, уникальный фактоид
 """
 import os
+import hashlib
 from datetime import datetime
 from PIL import Image, ImageDraw, ImageFont
 from config import IMAGES_DIR
 
 WIDTH, HEIGHT = 1080, 1080
 
-# === Брендовая палитра Велес IT ===
-BG = (10, 20, 20)              # #0A1414
-CARD = (15, 26, 26)            # #0F1A1A
+BG = (10, 20, 20)
+CARD = (15, 26, 26)
 CARD_BORDER = (30, 60, 58)
-TURQUOISE = (94, 230, 208)     # #5EE6D0
+TURQUOISE = (94, 230, 208)
 TURQUOISE_DIM = (60, 145, 130)
-ORANGE = (255, 140, 66)        # #FF8C42
-TEXT_MAIN = (230, 244, 241)    # #E6F4F1
-TEXT_DIM = (122, 155, 150)     # #7A9B96
+ORANGE = (255, 140, 66)
+TEXT_MAIN = (230, 244, 241)
+TEXT_DIM = (122, 155, 150)
 TEXT_FAINT = (60, 85, 82)
 GRID = (16, 28, 28)
 
-# Контекстные индикаторы по типу поста
 INDICATORS = {
     "news":      ("threat.detected",   TURQUOISE),
     "breakdown": ("incident.analyzed", ORANGE),
     "lifehack":  ("action.required",   TURQUOISE),
     "welcome":   ("SOC · online",      TURQUOISE),
     "stat":      ("data.tracked",      TURQUOISE),
-    "law":       ("policy.update",     TURQUOISE),
+    "law":       ("policy.update",     ORANGE),
 }
-
-
-def generate_image_prompt(topic: str) -> str:
-    return (
-        f"Premium B2B cybersecurity poster, very dark teal background (#0A1414), "
-        f"turquoise accent (#5EE6D0), faint geometric grid, monitoring dashboard aesthetic. "
-        f"Editorial typography, spacious composition. NO hooded hacker, NO matrix code. "
-        f"Theme: {topic}. Square 1080x1080."
-    )
 
 
 def _font(size, bold=False):
@@ -78,7 +64,6 @@ def _wrap(draw, text, font, max_width):
 
 
 def _draw_v_logo(draw, x, y, size=44):
-    """Логотип V — стилизованный щит, как на сайте."""
     points_outer = [
         (x, y),
         (x + size, y),
@@ -104,19 +89,24 @@ def _draw_grid(draw):
         draw.line([(0, y), (WIDTH, y)], fill=GRID, width=1)
 
 
+def _hash_id(seed: str) -> str:
+    return hashlib.md5(seed.encode("utf-8")).hexdigest()[:10]
+
+
 def create_post_image(
-    category: str,
-    headline: str,
-    dek: str,
-    kind: str = "news",
-    fact_label: str = None,
-    fact_value: str = None,
-    filename: str = "post.png",
-    channel_handle: str = "@cyberveles",
-    site_url: str = "veles-it.ru",
-) -> str:
-    """Создаёт картинку поста в фирстиле Велес IT. Возвращает путь."""
+    category, headline, dek, kind="news",
+    fact_label=None, fact_value=None,
+    filename=None,
+    channel_handle="@cyberveles",
+    site_url="veles-it.ru",
+    source_name=None,
+    seed=None,
+):
     os.makedirs(IMAGES_DIR, exist_ok=True)
+
+    if not filename:
+        seed = seed or headline or "post"
+        filename = f"post_{_hash_id(seed)}.png"
     path = os.path.join(IMAGES_DIR, filename)
 
     img = Image.new("RGB", (WIDTH, HEIGHT), BG)
@@ -124,29 +114,30 @@ def create_post_image(
 
     _draw_grid(draw)
 
-    # ШАПКА
     _draw_v_logo(draw, 70, 70, size=44)
     draw.text((128, 76), "Велес IT", font=_font(28, bold=True), fill=TEXT_MAIN)
 
     date_str = datetime.now().strftime("%d.%m.%Y")
-    meta_text = f"{kind.upper()}  ·  {date_str}"
+    meta_parts = [kind.upper(), date_str]
+    if source_name:
+        meta_parts.append(source_name[:20])
+    meta_text = "  ·  ".join(meta_parts)
     meta_w = draw.textlength(meta_text, font=_font(20))
     draw.text((WIDTH - 70 - meta_w, 84), meta_text, font=_font(20), fill=TEXT_DIM)
 
     draw.line([(70, 145), (WIDTH - 70, 145)], fill=TURQUOISE_DIM, width=1)
 
-    # РУБРИКА
     cat_y = 200
     draw.line([(70, cat_y + 14), (105, cat_y + 14)], fill=TURQUOISE, width=2)
     draw.text((118, cat_y), category.upper(),
               font=_font(22, bold=True), fill=TURQUOISE)
 
-    # ЗАГОЛОВОК (адаптивный размер под длину)
     char_count = len(headline)
-    if char_count <= 30:   title_size = 92
-    elif char_count <= 50: title_size = 80
-    elif char_count <= 75: title_size = 68
-    else:                  title_size = 58
+    if char_count <= 30:    title_size = 92
+    elif char_count <= 50:  title_size = 80
+    elif char_count <= 75:  title_size = 68
+    elif char_count <= 100: title_size = 58
+    else:                   title_size = 50
 
     title_font = _font(title_size, bold=True)
     title_lines = _wrap(draw, headline, title_font, WIDTH - 140)[:5]
@@ -156,14 +147,12 @@ def create_post_image(
         draw.text((70, y), line, font=title_font, fill=TEXT_MAIN)
         y += line_height
 
-    # ДЕК
     y += 20
     dek_font = _font(30)
     for line in _wrap(draw, dek, dek_font, WIDTH - 200)[:3]:
         draw.text((70, y), line, font=dek_font, fill=TEXT_DIM)
         y += 42
 
-    # ФАКТОИД
     if fact_label and fact_value:
         box_y = HEIGHT - 320
         box_h = 150
@@ -185,7 +174,6 @@ def create_post_image(
         draw.text((ind_x + 22, ind_y - 4), indicator_text,
                   font=_font(20), fill=TEXT_DIM)
 
-    # ПОДВАЛ
     footer_y = HEIGHT - 90
     draw.line([(70, footer_y), (WIDTH - 70, footer_y)], fill=TEXT_FAINT, width=1)
     draw.text((70, footer_y + 25), channel_handle,
@@ -199,7 +187,6 @@ def create_post_image(
     return path
 
 
-# Совместимость со старым API generator.py
 def create_placeholder_image(title, subtitle, filename, kind="news",
                               fact_label="минут на бесплатный аудит",
                               fact_value="15"):
