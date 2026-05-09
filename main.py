@@ -2,12 +2,12 @@
 main.py — точка входа.
 
 Команды:
-  python main.py           — постит один пост (slot=0 по умолчанию)
-  python main.py slot 0    — пост утреннего слота (10:00)
-  python main.py slot 1    — пост дневного слота (14:00)
-  python main.py slot 2    — пост вечернего слота (18:00, лайфхак/разбор)
-  python main.py welcome   — приветственный пост
-  python main.py moderate  — цикл одобрения для draft-режима
+  python main.py            — авто (по часу UTC определяет slot)
+  python main.py slot 0     — пост утреннего слота (10:00 МСК)
+  python main.py slot 1     — пост дневного слота (14:00 МСК)
+  python main.py slot 2     — пост вечернего слота (18:00 МСК)
+  python main.py welcome    — приветственный пост
+  python main.py moderate   — цикл одобрения для draft-режима
 """
 import sys
 import os
@@ -34,28 +34,54 @@ def _render_and_publish(post):
     publish(post, img_path)
 
 
+def _detect_slot_from_utc():
+    """Определяем слот по текущему часу UTC. МСК = UTC+3."""
+    hour = datetime.utcnow().hour
+    # 07 UTC = 10:00 МСК (slot 0)
+    # 11 UTC = 14:00 МСК (slot 1)
+    # 15 UTC = 18:00 МСК (slot 2)
+    if 6 <= hour <= 8:
+        return 0
+    if 10 <= hour <= 12:
+        return 1
+    if 14 <= hour <= 16:
+        return 2
+    # По умолчанию — slot 0 (если запустили в неурочное время)
+    return 0
+
+
 def run_single_slot(slot: int):
-    """Постит ОДИН пост для конкретного слота (0/1/2)."""
+    """Постит ОДИН пост для конкретного слота."""
     print(f"→ Slot {slot} run...")
     raw = fetch_news()
-    print(f"  raw: {len(raw)}")
+    print(f"  raw items: {len(raw)}")
 
-    picked = filter_and_diversify(raw, n=5)
-    print(f"  picked: {len(picked)} ({[p['category'] for p in picked]})")
+    picked = filter_and_diversify(raw, n=10)
+    print(f"  picked: {len(picked)} ({[p.get('category') for p in picked]})")
+
+    # Если жёсткий фильтр выкинул всё — пытаемся сбросить историю и взять старое
+    if not picked:
+        print("  ⚠ Нет новых релевантных. Сбрасываю sent.json и пробую снова...")
+        save_sent([])
+        raw = fetch_news()
+        picked = filter_and_diversify(raw, n=10)
+        print(f"  retry picked: {len(picked)}")
 
     if not picked:
-        print("Нет релевантных новостей. Выходим.")
+        print("✗ Совсем нет релевантных новостей. Пропускаем день.")
         return
 
-    post = build_single_post(picked, slot_index=slot)
+    # Берём новость для конкретного слота — со сдвигом, чтобы 10/14/18 не были одной темой
+    item = picked[slot % len(picked)]
+    print(f"  → {item.get('category')} | {item.get('title', '')[:80]}")
+
+    post = build_single_post([item], slot_index=slot)
     _render_and_publish(post)
     print(f"  posted: {post['kind']}")
 
-    # Помечаем как использованную ТОЛЬКО ту новость, что взяли
-    if slot < len(picked):
-        sent = load_sent()
-        save_sent(sent + [picked[slot % len(picked)]["link"]])
-
+    # Помечаем эту новость как опубликованную
+    sent = load_sent()
+    save_sent(sent + [item["link"]])
     print("✓ Done")
 
 
@@ -63,11 +89,11 @@ def run_welcome():
     print("→ Publishing welcome...")
     post = build_welcome_post()
     _render_and_publish(post)
-    print("✓ Welcome posted. Pin it manually.")
+    print("✓ Welcome posted. Pin it manually in channel.")
 
 
 def run_daily_pack():
-    """Старая логика — 3 поста разом. Оставлена для совместимости."""
+    """Старая логика: 3 поста разом. Для совместимости."""
     print("→ Daily pack run...")
     raw = fetch_news()
     picked = filter_and_diversify(raw, n=3)
@@ -97,10 +123,7 @@ def run_moderation_loop():
 
 if __name__ == "__main__":
     args = sys.argv[1:]
-
-    # Поддержка GitHub Actions: команда может быть передана как одно слово
-    # Например: "slot 0" → ["slot", "0"]
-    cmd = args[0] if args else "run"
+    cmd = args[0] if args else "auto"
 
     if cmd == "welcome":
         run_welcome()
@@ -117,6 +140,9 @@ if __name__ == "__main__":
         run_single_slot(2)
     elif cmd == "pack":
         run_daily_pack()
+    elif cmd == "run":
+        # Алиас для auto
+        run_single_slot(_detect_slot_from_utc())
     else:
-        # По умолчанию — один пост в утреннем слоте
-        run_single_slot(0)
+        # Авто-режим — по часу UTC
+        run_single_slot(_detect_slot_from_utc())
