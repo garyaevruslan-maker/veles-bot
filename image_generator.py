@@ -132,15 +132,25 @@ def create_post_image(
     draw.text((118, cat_y), category.upper(),
               font=_font(22, bold=True), fill=TURQUOISE)
 
-    char_count = len(headline)
-    if char_count <= 30:    title_size = 92
-    elif char_count <= 50:  title_size = 80
-    elif char_count <= 75:  title_size = 68
-    elif char_count <= 100: title_size = 58
-    else:                   title_size = 50
+    # ЗАГОЛОВОК — обрезаем по словам до ~80 символов и подбираем крупный шрифт
+    # Цель: 2-3 строки максимум, читаемо в ленте
+    headline_short = headline
+    if len(headline_short) > 80:
+        # Режем по последнему пробелу до 80 знаков
+        cut = headline_short[:80]
+        if " " in cut:
+            cut = cut[:cut.rfind(" ")]
+        headline_short = cut.strip() + "…"
+
+    char_count = len(headline_short)
+    if char_count <= 25:    title_size = 96
+    elif char_count <= 40:  title_size = 86
+    elif char_count <= 55:  title_size = 76
+    elif char_count <= 70:  title_size = 66
+    else:                   title_size = 58
 
     title_font = _font(title_size, bold=True)
-    title_lines = _wrap(draw, headline, title_font, WIDTH - 140)[:5]
+    title_lines = _wrap(draw, headline_short, title_font, WIDTH - 140)[:3]
     line_height = int(title_size * 1.15)
     y = 260
     for line in title_lines:
