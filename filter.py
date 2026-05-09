@@ -1,47 +1,183 @@
+"""
+filter.py — жёсткий фильтр и точная категоризация.
+
+Логика отбора:
+1. ОБЯЗАТЕЛЬНО есть IT-контекст (сайт, сервер, плагин, и т.д.) — иначе выкидываем
+2. ОБЯЗАТЕЛЬНО есть угроза/инцидент (взлом, утечка, и т.д.) — иначе выкидываем
+3. Категоризация по приоритету: ecommerce > ransomware > leak > phishing > ...
+4. Diversity: берём из разных категорий
+"""
 from config import KEYWORDS_INCLUDE, KEYWORDS_EXCLUDE
 
 
+# Whitelist: новость должна содержать ХОТЯ БЫ ОДНО из этих слов (IT-контекст)
+IT_CONTEXT_TERMS = [
+    # English IT-контекст
+    "website", "site", "server", "plugin", "patch", "vulnerability",
+    "exploit", "cve", "malware", "backdoor", "api", "endpoint",
+    "domain", "browser", "firefox", "chrome", "edge", "safari",
+    "windows", "linux", "android", "ios", "mac", "docker",
+    "wordpress", "drupal", "magento", "shopify", "woocommerce",
+    "bitrix", "1c", "joomla", "opencart",
+    "cisco", "fortinet", "palo alto", "vpn", "firewall",
+    "saas", "cloud", "aws", "azure", "kubernetes",
+    # Русский IT-контекст
+    "сайт", "сервер", "плагин", "патч", "уязвимост", "эксплоит",
+    "вредонос", "бэкдор", "малвар", "стилер", "троян",
+    "домен", "браузер", "хром", "файрфокс", "сафари",
+    "виндовс", "линукс", "андроид", "ай-ос",
+    "битрикс", "вордпресс", "опенкарт",
+    "облак", "впн", "файрвол",
+    "база данных", "база клиент", "персональных данн", "персональные данн",
+    "учётн", "учетн", "пароль", "доступ", "админк",
+    "интернет-магазин", "магазин",
+    "фишинг", "фишинговая", "фишинговую", "кампания", "почта", "email",
+    # Бренды и платформы
+    "google", "microsoft", "apple", "telegram", "whatsapp",
+    "github", "gitlab", "bitbucket",
+]
+
+# Whitelist: должна быть угроза или инцидент
+THREAT_TERMS = [
+    # English
+    "breach", "leak", "leaked", "exposed", "stolen", "stolen",
+    "ransomware", "encrypt", "phishing", "scam", "fraud",
+    "vulnerability", "exploit", "zero-day", "0-day", "rce",
+    "skimmer", "magecart", "stealer", "backdoor", "malware",
+    "compromised", "hacked", "attacked", "breached", "ddos",
+    "credential", "infected", "ransom",
+    # Русский — корни и формы
+    "утечк", "утек", "утёк", "слил", "слита", "слиты",
+    "украден", "украл", "крадёт", "крадет",
+    "вскрыт", "взлом", "взломан", "взломал", "взломали",
+    "шифровальщик", "вымогатель", "вымогател",
+    "фишинг", "поддельн", "мошенн", "обман",
+    "уязвимост", "эксплоит", "атак", "ддос",
+    "скомпрометир", "заражен", "заражён",
+    "выкуп", "хакер", "взлом", "пробив",
+]
+
+# Blacklist: новость про эти темы НЕ берём, даже если она содержит IT-слова
+HARD_BLACKLIST = [
+    # Политика и геополитика
+    "kremlin", "putin", "trump", "biden", "election interference",
+    "кремл", "путин", "трамп", "выбор", "санкци",
+    # Регуляторика без техники (запреты сайтов, цензура)
+    "роскомнадзор заблокировал", "роскомнадзор заблокировал",
+    "запрет сайта", "разблокировал", "разблокирова",
+    "мосгорсуд", "верховный суд", "конституционный суд",
+    "ЯПлакалъ", "анекдот",
+    # Военные APT (это для безопасников, не для бизнеса)
+    "apt28", "apt29", "lazarus group", "fancy bear",
+    "ракет", "военн", "кибервойн",
+    # Криптовалюты и трейдинг
+    "bitcoin price", "ethereum price", "крипт",
+    "kraken", "binance", "coinbase",
+    # Прочее
+    "hacker arrest", "арест хакер", "приговор",
+    # Новости про защиту/исправления (не про инциденты)
+    "fixed vulnerabilit", "patched", "исправил", "исправлены проблем",
+    "released patch", "выпустила патч", "обновила безопасност",
+]
+
+
+def _contains_any(text: str, terms: list) -> bool:
+    text_lower = text.lower()
+    return any(term in text_lower for term in terms)
+
+
 def is_relevant(item) -> bool:
-    blob = f"{item['title']} {item['summary']}".lower()
-    if any(bad in blob for bad in KEYWORDS_EXCLUDE):
+    """Жёсткая проверка: нужно совпадение с IT-контекстом И с угрозой, и не должно быть в блок-листе."""
+    blob = f"{item.get('title', '')} {item.get('summary', '')}"
+
+    # 1. Блок-лист — сразу выкидываем
+    if _contains_any(blob, HARD_BLACKLIST):
         return False
-    return any(kw in blob for kw in KEYWORDS_INCLUDE)
+    if _contains_any(blob, KEYWORDS_EXCLUDE):
+        return False
+
+    # 2. Должен быть IT-контекст
+    if not _contains_any(blob, IT_CONTEXT_TERMS):
+        return False
+
+    # 3. Должна быть угроза/инцидент
+    if not _contains_any(blob, THREAT_TERMS):
+        return False
+
+    return True
 
 
 def detect_category(item) -> str:
-    blob = f"{item['title']} {item['summary']}".lower()
-    if any(w in blob for w in ["ransomware", "ransom", "encrypted"]):
-        return "ransomware"
-    if any(w in blob for w in ["data breach", "leak", "leaked", "exposed", "pii"]):
-        return "leak"
-    if any(w in blob for w in ["phishing", "spear", "scam"]):
-        return "phishing"
-    if any(w in blob for w in ["ddos"]):
-        return "ddos"
-    if any(w in blob for w in ["magecart", "skimmer", "card data", "checkout"]):
+    """
+    Определяем категорию по приоритету (от более специфичной к общей).
+    """
+    blob = f"{item.get('title', '')} {item.get('summary', '')}".lower()
+
+    # E-commerce (самая важная для нашей ЦА)
+    if any(w in blob for w in ["magecart", "skimmer", "card data", "checkout",
+                                "shopify", "magento", "woocommerce", "shopify",
+                                "bitrix", "битрикс", "интернет-магазин", "магазин"]):
         return "ecommerce"
-    if any(w in blob for w in ["zero-day", "0day", "rce", "exploit"]):
+
+    # Ransomware
+    if any(w in blob for w in ["ransomware", "ransom", "encrypt", "шифровальщик",
+                                "вымогатель", "вымогател"]):
+        return "ransomware"
+
+    # Утечки
+    if any(w in blob for w in ["data breach", "leak", "leaked", "exposed", "pii",
+                                "утечк", "слил", "слита", "украден"]):
+        return "leak"
+
+    # Phishing
+    if any(w in blob for w in ["phishing", "spear", "scam", "fraud",
+                                "фишинг", "поддельн", "мошенн"]):
+        return "phishing"
+
+    # DDoS
+    if any(w in blob for w in ["ddos", "ддос"]):
+        return "ddos"
+
+    # Уязвимости и эксплойты в плагинах/CMS
+    if any(w in blob for w in ["zero-day", "0-day", "rce", "exploit",
+                                "эксплоит", "уязвимост"]):
         return "vulnerability"
-    if any(w in blob for w in ["api", "supply chain"]):
+
+    # API
+    if any(w in blob for w in ["api leak", "api exposed", "api endpoint", "api"]):
         return "api"
+
+    # Браузер
+    if any(w in blob for w in ["firefox", "chrome", "safari", "edge", "браузер"]):
+        return "browser"
+
+    # Мобильные угрозы
+    if any(w in blob for w in ["android", "ios", "mobile app", "андроид", "ай-ос"]):
+        return "mobile"
+
     return "general"
 
 
-def filter_and_diversify(items, n=3):
+def filter_and_diversify(items, n=5):
+    """
+    Берём n релевантных новостей из разных категорий.
+    """
     relevant = [i for i in items if is_relevant(i)]
     for it in relevant:
         it["category"] = detect_category(it)
 
-    seen = set()
+    # Сначала — по одной из каждой категории
+    seen_categories = set()
     picked = []
     for it in relevant:
-        if it["category"] in seen:
+        if it["category"] in seen_categories:
             continue
         picked.append(it)
-        seen.add(it["category"])
+        seen_categories.add(it["category"])
         if len(picked) == n:
             return picked
 
+    # Если не набрали — добиваем
     for it in relevant:
         if it not in picked:
             picked.append(it)
