@@ -5,7 +5,7 @@ generator.py — два режима тона: редакционный и пр�
 """
 import random
 from ai_writer import rewrite_in_veles_tone, cta, get_category_label
-from config import CHANNEL_HANDLE, CONTACT_HANDLE
+from config import CHANNEL_HANDLE, CONTACT_HANDLE, AUDIT_BOT_HANDLE
 
 
 # === Мини-CTA для редакционного режима (одна строка вместо абзаца) ===
@@ -203,10 +203,14 @@ def build_welcome_post() -> dict:
         f"🟢 <b>Экспресс-аудит сайта за 15 минут.</b> Смотрим снаружи, "
         f"показываем 1-2 конкретные зоны риска. Без презентаций.\n\n"
         f"———\n\n"
-        f"Если у вас есть сайт с клиентами — напишите в {CONTACT_HANDLE}.\n\n"
+        f"<b>Как получить бесплатный аудит:</b>\n\n"
+        f"🤖 Быстрый старт — напишите боту {AUDIT_BOT_HANDLE}, "
+        f"оставьте адрес сайта, и мы возьмём его в работу.\n"
+        f"💬 Хотите обсудить лично — пишите напрямую {CONTACT_HANDLE}.\n\n"
         f"<i>Работаем в тени, чтобы ваш бизнес оставался на свету.</i>\n\n"
         f"🌐 veles-it.ru\n"
-        f"📨 {CONTACT_HANDLE} — для бесплатного аудита\n\n"
+        f"🤖 {AUDIT_BOT_HANDLE} — бот для заявок на аудит\n"
+        f"💬 {CONTACT_HANDLE} — связь напрямую\n\n"
         f"{CHANNEL_HANDLE}"
     )
     return {
@@ -225,24 +229,31 @@ def build_welcome_post() -> dict:
 
 def build_single_post(news_items, slot_index=0):
     """
-    Возвращает ОДИН пост для конкретного слота времени.
-    slot_index: 0 = 10:00 (новость editorial), 1 = 14:00 (новость promo), 2 = 18:00 (лайфхак/разбор)
+    Возвращает ОДИН пост для конкретного слота времени (режим 2 поста в день).
+    slot 0 = 10:00 (editorial новость)
+    slot 1 = 18:00 (чередуется: пн/ср/пт — promo-новость, вт/чт — лайфхак, сб/вс — разбор)
     """
     if not news_items:
         raise ValueError("Нет новостей")
 
+    from datetime import datetime
     item = news_items[slot_index % len(news_items)]
 
     if slot_index == 0:
+        # Утро — всегда новость в редакционном тоне
         return build_news_post(item, force_mode="editorial")
-    elif slot_index == 1:
-        return build_news_post(item, force_mode="promo")
-    else:
-        # 18:00 — на буднях лайфхак, в пятницу разбор
-        from datetime import datetime
-        if datetime.now().weekday() == 4 and len(news_items) >= 3:
-            return build_breakdown_post(item)
+
+    # Вечерний слот — чередуем формат по дню недели
+    weekday = datetime.now().weekday()  # 0=пн ... 6=вс
+    if weekday in (1, 3):
+        # вт, чт — лайфхак (польза)
         return build_lifehack_post()
+    elif weekday in (5, 6):
+        # сб, вс — разбор взлома
+        return build_breakdown_post(item)
+    else:
+        # пн, ср, пт — продающая новость
+        return build_news_post(item, force_mode="promo")
 
 
 # Совместимость со старым API
