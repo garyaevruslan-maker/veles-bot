@@ -35,18 +35,15 @@ def _render_and_publish(post):
 
 
 def _detect_slot_from_utc():
-    """Определяем слот по текущему часу UTC. МСК = UTC+3."""
+    """Определяем слот по текущему часу UTC. МСК = UTC+3. Два поста в день."""
     hour = datetime.utcnow().hour
-    # 07 UTC = 10:00 МСК (slot 0)
-    # 11 UTC = 14:00 МСК (slot 1)
-    # 15 UTC = 18:00 МСК (slot 2)
-    if 6 <= hour <= 8:
+    # 07 UTC = 10:00 МСК (slot 0 — editorial новость)
+    # 15 UTC = 18:00 МСК (slot 1 — лайфхак / promo)
+    if 6 <= hour <= 9:
         return 0
-    if 10 <= hour <= 12:
+    if 14 <= hour <= 17:
         return 1
-    if 14 <= hour <= 16:
-        return 2
-    # По умолчанию — slot 0 (если запустили в неурочное время)
+    # По умолчанию — slot 0
     return 0
 
 
