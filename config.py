@@ -14,7 +14,8 @@ MODERATION_MODE = os.getenv("MODERATION_MODE", "draft")
 # === Бренд ===
 SITE_URL = os.getenv("SITE_URL", "https://veles-it.ru")
 CHANNEL_HANDLE = "@cyberveles"
-CONTACT_HANDLE = os.getenv("CONTACT_HANDLE", "@velesit_audit")
+CONTACT_HANDLE = os.getenv("CONTACT_HANDLE", "@Rama_888")
+AUDIT_BOT_HANDLE = os.getenv("AUDIT_BOT_HANDLE", "@VelesIT_bot")
 
 # === AI ===
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
@@ -27,16 +28,16 @@ IMAGES_DIR = "images"
 
 # === RSS источники ===
 RSS_FEEDS = [
-    "https://www.anti-malware.ru/news/feed",
-    "https://www.securitylab.ru/_Services/Export/RSS/news/",
-    "https://habr.com/ru/rss/hub/infosecurity/",
     "https://feeds.feedburner.com/TheHackersNews",
     "https://www.bleepingcomputer.com/feed/",
+    "https://www.darkreading.com/rss.xml",
+    "https://www.securityweek.com/feed/",
+    "https://krebsonsecurity.com/feed/",
+    "https://securelist.com/feed/",
 ]
 
 # === Фильтр тем ===
 KEYWORDS_INCLUDE = [
-    # English
     "data breach", "leak", "leaked", "exposed",
     "ransomware", "ransom", "encrypted",
     "phishing", "spear phishing", "scam",
@@ -47,17 +48,6 @@ KEYWORDS_INCLUDE = [
     "customer data", "pii", "personal data",
     "ddos", "credential", "stealer",
     "sql injection", "xss", "supply chain",
-    # Русский
-    "утечк", "слил", "слита", "взлом", "взломан",
-    "шифровальщик", "вымогатель",
-    "фишинг", "поддельн", "мошенн",
-    "уязвимост", "эксплоит", "атака", "атаков",
-    "интернет-магазин", "магазин",
-    "персональн", "данные клиент", "база клиент",
-    "ддос", "взломал", "взломали",
-    "скомпрометир", "украден", "слиты",
-    "152-фз", "роскомнадзор", "штраф",
-    "битрикс", "wordpress", "опенкарт",
 ]
 
 KEYWORDS_EXCLUDE = [
