@@ -2,14 +2,13 @@ name: Veles Daily Posts
 
 on:
   schedule:
-    # МСК = UTC+3
-    - cron: '0 7 * * *'    # 10:00 МСК — slot 0
-    - cron: '0 11 * * *'   # 14:00 МСК — slot 1
-    - cron: '0 15 * * *'   # 18:00 МСК — slot 2
+    # МСК = UTC+3. Два поста в день.
+    - cron: '0 7 * * *'    # 10:00 МСК — slot 0 (editorial новость)
+    - cron: '0 15 * * *'   # 18:00 МСК — slot 1 (promo / лайфхак / разбор)
   workflow_dispatch:
     inputs:
       command:
-        description: 'Команда: auto | welcome | slot 0 | slot 1 | slot 2'
+        description: 'Команда: auto | welcome | slot 0 | slot 1'
         required: false
         default: 'auto'
 
@@ -29,7 +28,6 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
-      # ВАЖНО: стабильный ключ кеша. Так история постов копится между запусками.
       - name: Restore sent.json from cache
         uses: actions/cache@v4
         with:
@@ -46,6 +44,7 @@ jobs:
           MODERATION_MODE: ${{ secrets.MODERATION_MODE }}
           SITE_URL: ${{ secrets.SITE_URL }}
           CONTACT_HANDLE: ${{ secrets.CONTACT_HANDLE }}
+          AUDIT_BOT_HANDLE: ${{ secrets.AUDIT_BOT_HANDLE }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: python main.py ${{ github.event.inputs.command || 'auto' }}
 
