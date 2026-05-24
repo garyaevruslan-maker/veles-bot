@@ -28,12 +28,9 @@ IMAGES_DIR = "images"
 
 # === RSS источники ===
 RSS_FEEDS = [
-    "https://feeds.feedburner.com/TheHackersNews",
-    "https://www.bleepingcomputer.com/feed/",
-    "https://www.darkreading.com/rss.xml",
-    "https://www.securityweek.com/feed/",
-    "https://krebsonsecurity.com/feed/",
-    "https://securelist.com/feed/",
+    "https://www.anti-malware.ru/news/feed",
+    "https://www.securitylab.ru/_Services/Export/RSS/news/",
+    "https://habr.com/ru/rss/hub/infosecurity/",
 ]
 
 # === Фильтр тем ===
