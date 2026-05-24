@@ -112,7 +112,26 @@ def is_relevant(item) -> bool:
     if not _contains_any(blob, THREAT_TERMS):
         return False
 
+    # 4. Текст должен быть преимущественно на русском.
+    # Без Claude API английские новости не переводятся — отсекаем их.
+    if not _is_mostly_russian(blob):
+        return False
+
     return True
+
+
+def _is_mostly_russian(text: str, min_ratio: float = 0.3) -> bool:
+    """
+    Проверяет, что доля кириллицы достаточная.
+    Английские новости (The Hacker News и т.п.) сюда не пройдут.
+    min_ratio=0.3 — минимум 30% букв должны быть кириллицей.
+    """
+    letters = [c for c in text if c.isalpha()]
+    if not letters:
+        return False
+    cyrillic = [c for c in letters if "\u0400" <= c <= "\u04FF"]
+    ratio = len(cyrillic) / len(letters)
+    return ratio >= min_ratio
 
 
 def detect_category(item) -> str:
